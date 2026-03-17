@@ -17,7 +17,6 @@ export default function StreamCard({ stream }) {
             <span style={styles.liveBadge}>● LIVE</span>
           </div>
         )}
-        {!stream.thumbnailUrl && null}
         <div style={styles.liveBadgeOverlay}>
           <span style={styles.liveDot}>●</span> LIVE
         </div>
