@@ -8,11 +8,19 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+// Sanitize pagination params to prevent DoS from extreme values
+const parsePagination = (query, defaultLimit = 20) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+};
+
 // GET /api/mixes — list public mixes
 router.get('/', async (req, res) => {
   try {
-    const { genre, search, dj, page = 1, limit = 20, sort = 'newest' } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { genre, search, dj, sort = 'newest' } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const filter = { visibility: 'public' };
     if (genre) filter.genre = genre;
@@ -31,7 +39,7 @@ router.get('/', async (req, res) => {
         .populate('dj', 'username displayName avatarUrl isVerified')
         .sort(sortOrder)
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       Mix.countDocuments(filter),
     ]);
@@ -39,10 +47,10 @@ router.get('/', async (req, res) => {
     return res.json({
       mixes,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (err) {
@@ -55,8 +63,7 @@ router.get('/', async (req, res) => {
 router.get('/feed', authMiddleware, async (req, res) => {
   try {
     const Follow = require('../models/Follow');
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page, limit, skip } = parsePagination(req.query);
 
     // Get the DJs this user follows
     const follows = await Follow.find({ follower: req.user._id }).select('following');
@@ -72,7 +79,7 @@ router.get('/feed', authMiddleware, async (req, res) => {
         .populate('dj', 'username displayName avatarUrl isVerified')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       Mix.countDocuments(filter),
     ]);
@@ -80,10 +87,10 @@ router.get('/feed', authMiddleware, async (req, res) => {
     return res.json({
       mixes,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (err) {
@@ -130,7 +137,10 @@ router.post(
     body('description').optional().trim().isLength({ max: 500 }),
     body('genre').optional().trim(),
     body('tags').optional().isArray(),
-    body('playbackUrl').optional().isURL().withMessage('Valid playback URL required'),
+    body('playbackUrl')
+      .optional()
+      .isURL({ protocols: ['http', 'https'], require_protocol: true })
+      .withMessage('Valid HTTP/HTTPS playback URL required'),
     body('durationSeconds').optional().isInt({ min: 0 }),
     body('visibility')
       .optional()
@@ -230,22 +240,21 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // GET /api/mixes/:id/comments
 router.get('/:id/comments', async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page, limit, skip } = parsePagination(req.query);
 
     const [comments, total] = await Promise.all([
       Comment.find({ mix: req.params.id })
         .populate('user', 'username displayName avatarUrl')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       Comment.countDocuments({ mix: req.params.id }),
     ]);
 
     return res.json({
       comments,
-      pagination: { page: Number(page), limit: Number(limit), total },
+      pagination: { page, limit, total },
     });
   } catch (err) {
     console.error('Get comments error:', err);

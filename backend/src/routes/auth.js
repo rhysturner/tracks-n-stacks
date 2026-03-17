@@ -7,8 +7,16 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return secret;
+};
+
 const generateToken = (userId) =>
-  jwt.sign({ id: userId }, process.env.JWT_SECRET || 'default_secret', {
+  jwt.sign({ id: userId }, getJwtSecret(), {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 

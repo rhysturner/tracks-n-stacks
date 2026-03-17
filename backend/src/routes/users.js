@@ -7,17 +7,26 @@ const Stream = require('../models/Stream');
 
 const router = express.Router();
 
+const parsePagination = (query, defaultLimit = 20) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+};
+
 // GET /api/users — search/list DJs
 router.get('/', async (req, res) => {
   try {
-    const { search, genre, page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { search, genre } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const filter = {};
     if (search) {
+      // Escape regex special characters to prevent ReDoS
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { displayName: { $regex: search, $options: 'i' } },
+        { username: { $regex: escapedSearch, $options: 'i' } },
+        { displayName: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
     if (genre) {
@@ -29,7 +38,7 @@ router.get('/', async (req, res) => {
         .select('username displayName avatarUrl bio genres followerCount mixCount isVerified isStreaming')
         .sort({ followerCount: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       User.countDocuments(filter),
     ]);
@@ -37,10 +46,10 @@ router.get('/', async (req, res) => {
     return res.json({
       users,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (err) {
@@ -73,21 +82,20 @@ router.get('/:username/mixes', async (req, res) => {
     const user = await User.findOne({ username: req.params.username }).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page, limit, skip } = parsePagination(req.query);
 
     const [mixes, total] = await Promise.all([
       Mix.find({ dj: user._id, visibility: 'public' })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       Mix.countDocuments({ dj: user._id, visibility: 'public' }),
     ]);
 
     return res.json({
       mixes,
-      pagination: { page: Number(page), limit: Number(limit), total },
+      pagination: { page, limit, total },
     });
   } catch (err) {
     console.error('Get user mixes error:', err);
@@ -101,21 +109,20 @@ router.get('/:username/streams', async (req, res) => {
     const user = await User.findOne({ username: req.params.username }).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page, limit, skip } = parsePagination(req.query);
 
     const [streams, total] = await Promise.all([
       Stream.find({ dj: user._id })
         .sort({ startedAt: -1 })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .lean(),
       Stream.countDocuments({ dj: user._id }),
     ]);
 
     return res.json({
       streams,
-      pagination: { page: Number(page), limit: Number(limit), total },
+      pagination: { page, limit, total },
     });
   } catch (err) {
     console.error('Get user streams error:', err);
