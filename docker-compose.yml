@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # MongoDB database
+  mongodb:
+    image: mongo:7
+    container_name: tns-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=tracks-n-stacks
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tns-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/tracks-n-stacks
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - JWT_EXPIRES_IN=7d
+      - FRONTEND_URL=http://localhost:3000
+      - RED5_HOST=${RED5_HOST:-localhost}
+      - RED5_PORT=${RED5_PORT:-5080}
+      - RED5_RTMP_PORT=${RED5_RTMP_PORT:-1935}
+      - RED5_APP_NAME=${RED5_APP_NAME:-live}
+      - RED5_API_KEY=${RED5_API_KEY:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tns-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_SOCKET_URL=http://localhost:5000
+      - REACT_APP_RED5_HOST=${RED5_HOST:-localhost}
+      - REACT_APP_RED5_RTMP_PORT=${RED5_RTMP_PORT:-1935}
+      - REACT_APP_RED5_APP=${RED5_APP_NAME:-live}
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongo_data:

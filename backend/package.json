@@ -1,0 +1,41 @@
+{
+  "name": "tracks-n-stacks-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Tracks-N-Stacks DJ live streaming platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --runInBand --detectOpenHandles",
+    "test:coverage": "jest --coverage --runInBand --detectOpenHandles"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-validator": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^11.0.1",
+    "nodemon": "^3.1.3",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 10000,
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/index.js"
+    ]
+  }
+}
