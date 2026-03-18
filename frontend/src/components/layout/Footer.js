@@ -14,7 +14,7 @@ export default function Footer() {
           <Link to="/mixes" style={styles.link}>Mix Archive</Link>
           <Link to="/djs" style={styles.link}>Find DJs</Link>
         </div>
-        <p style={styles.copy}>© {new Date().getFullYear()} Tracks-N-Stacks. Powered by Red5 Pro.</p>
+        <p style={styles.copy}>© {new Date().getFullYear()} Tracks-N-Stacks. Powered by Red5.</p>
       </div>
     </footer>
   );
