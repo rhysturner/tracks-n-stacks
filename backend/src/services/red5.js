@@ -1,7 +1,7 @@
 /**
- * Red5 Pro Media Server service
+ * Red5 Community Edition Media Server service
  *
- * Handles integration with Red5 Pro REST API for:
+ * Handles integration with Red5 Community Edition REST API for:
  * - Stream key generation and validation
  * - Live stream lifecycle management
  * - Recording management
@@ -11,23 +11,24 @@ const axios = require('axios');
 
 // Read config at call time so tests can set env vars after requiring the module
 const getConfig = () => ({
-  host: process.env.RED5_HOST || 'localhost',
+  host: process.env.RED5_HOST || 'media.tracksnstacks.com',
   port: process.env.RED5_PORT || 5080,
-  apiKey: process.env.RED5_API_KEY || '',
+  username: process.env.RED5_USERNAME || 'admin',
+  password: process.env.RED5_PASSWORD || '',
   appName: process.env.RED5_APP_NAME || 'live',
   rtmpPort: process.env.RED5_RTMP_PORT || 1935,
 });
 
 const getClient = () => {
-  const { host, port, apiKey } = getConfig();
+  const { host, port, username, password } = getConfig();
   const client = axios.create({
     baseURL: `http://${host}:${port}/api/v1`,
     headers: { 'Content-Type': 'application/json' },
     timeout: 10000,
   });
-  if (apiKey) {
+  if (password) {
     client.interceptors.request.use((config) => {
-      config.headers['Authorization'] = `Basic ${Buffer.from(`app:${apiKey}`).toString('base64')}`;
+      config.headers['Authorization'] = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
       return config;
     });
   }
@@ -55,12 +56,12 @@ const getHlsPlaybackUrl = (streamName) => {
  * Get the WebRTC playback URL for a stream (low-latency)
  */
 const getWebRtcPlaybackUrl = (streamName) => {
-  const { host, appName } = getConfig();
-  return `wss://${host}:5443/${appName}/${streamName}`;
+  const { host, port, appName } = getConfig();
+  return `wss://${host}:${port}/${appName}/${streamName}`;
 };
 
 /**
- * Check if a stream is currently live on Red5 Pro
+ * Check if a stream is currently live on Red5 Community
  */
 const isStreamLive = async (streamName) => {
   const { appName } = getConfig();
@@ -75,7 +76,7 @@ const isStreamLive = async (streamName) => {
 };
 
 /**
- * Get active streams from Red5 Pro
+ * Get active streams from Red5 Community
  */
 const getActiveStreams = async () => {
   const { appName } = getConfig();
@@ -88,7 +89,7 @@ const getActiveStreams = async () => {
 };
 
 /**
- * Disconnect / end a stream via Red5 Pro API
+ * Disconnect / end a stream via Red5 Community API
  */
 const disconnectStream = async (streamName) => {
   const { appName } = getConfig();
@@ -118,7 +119,7 @@ const getRecordings = async (streamName) => {
 };
 
 /**
- * Get stream statistics from Red5 Pro
+ * Get stream statistics from Red5 Community
  */
 const getStreamStats = async (streamName) => {
   const { appName } = getConfig();

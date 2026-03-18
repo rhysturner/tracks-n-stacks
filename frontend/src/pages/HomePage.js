@@ -42,7 +42,7 @@ export default function HomePage() {
             <span style={styles.heroAccent}>Build Your Crowd.</span>
           </h1>
           <p style={styles.heroSubtitle}>
-            The DJ streaming platform powered by Red5 Pro. Go live in seconds,
+            The DJ streaming platform powered by Red5. Go live in seconds,
             grow your following, and archive your sets.
           </p>
           <div style={styles.heroButtons}>
@@ -139,7 +139,7 @@ export default function HomePage() {
         <div style={styles.steps}>
           {[
             { icon: '📝', title: 'Create Your Profile', desc: 'Sign up and set up your DJ profile in minutes.' },
-            { icon: '🎛️', title: 'Go Live', desc: 'Stream from OBS or any RTMP software to Red5 Pro.' },
+            { icon: '🎛️', title: 'Go Live', desc: 'Stream from OBS or any RTMP software to Red5.' },
             { icon: '🎵', title: 'Archive & Share', desc: 'Your streams are saved as mixes for fans to replay.' },
             { icon: '🌐', title: 'Grow Your Network', desc: 'Followers, likes, and comments build your community.' },
           ].map((step) => (

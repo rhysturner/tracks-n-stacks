@@ -22,11 +22,11 @@ describe('Red5 Service', () => {
   });
 
   describe('getWebRtcPlaybackUrl', () => {
-    it('should return a WebRTC WSS URL', () => {
+    it('should return a WebRTC WSS URL using the same port as HTTP', () => {
       const url = red5Service.getWebRtcPlaybackUrl('djname_abc123');
       expect(url).toMatch(/^wss:\/\//);
       expect(url).toContain('djname_abc123');
-      expect(url).toBe('wss://red5.example.com:5443/live/djname_abc123');
+      expect(url).toBe('wss://red5.example.com:5080/live/djname_abc123');
     });
   });
 

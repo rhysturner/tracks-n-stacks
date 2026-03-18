@@ -32,11 +32,12 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
       - JWT_EXPIRES_IN=7d
       - FRONTEND_URL=http://localhost:3000
-      - RED5_HOST=${RED5_HOST:-localhost}
+      - RED5_HOST=${RED5_HOST:-media.tracksnstacks.com}
       - RED5_PORT=${RED5_PORT:-5080}
       - RED5_RTMP_PORT=${RED5_RTMP_PORT:-1935}
       - RED5_APP_NAME=${RED5_APP_NAME:-live}
-      - RED5_API_KEY=${RED5_API_KEY:-}
+      - RED5_USERNAME=${RED5_USERNAME:-admin}
+      - RED5_PASSWORD=${RED5_PASSWORD:-}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -56,7 +57,7 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:5000/api
       - REACT_APP_SOCKET_URL=http://localhost:5000
-      - REACT_APP_RED5_HOST=${RED5_HOST:-localhost}
+      - REACT_APP_RED5_HOST=${RED5_HOST:-media.tracksnstacks.com}
       - REACT_APP_RED5_RTMP_PORT=${RED5_RTMP_PORT:-1935}
       - REACT_APP_RED5_APP=${RED5_APP_NAME:-live}
     depends_on:

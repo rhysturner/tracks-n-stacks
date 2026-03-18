@@ -44,10 +44,10 @@ export default function StreamViewPage() {
           <div style={styles.playerWrapper}>
             {stream?.status === 'live' ? (
               <div style={styles.player}>
-                {/* Red5 Pro WebRTC Player / HLS Player placeholder */}
+                {/* Red5 WebRTC Player / HLS Player placeholder */}
                 <div style={styles.playerPlaceholder}>
                   <div style={styles.playerIcon}>📡</div>
-                  <div style={styles.playerText}>Live stream playing via Red5 Pro</div>
+                  <div style={styles.playerText}>Live stream playing via Red5</div>
                   <div style={styles.playerSubtext}>
                     WebRTC: <code style={styles.code}>{stream.webrtcPlaybackUrl}</code>
                   </div>
@@ -55,7 +55,7 @@ export default function StreamViewPage() {
                     HLS: <code style={styles.code}>{stream.playbackUrl}</code>
                   </div>
                   {/* 
-                    In production, embed the Red5 Pro WebRTC subscriber here:
+                    In production, embed the Red5 WebRTC subscriber here:
                     <red5pro-subscriber
                       host={RED5_HOST}
                       app={RED5_APP}
