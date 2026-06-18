@@ -15,7 +15,7 @@ export default function ShareModal({ url, title, onClose }) {
     },
     {
       label: 'Facebook',
-      icon: 'f',
+      icon: '📘',
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     },
     {
@@ -31,15 +31,7 @@ export default function ShareModal({ url, title, onClose }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback for browsers that don't support clipboard API
-      const input = document.createElement('input');
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // clipboard write unavailable in this context
     }
   };
 
