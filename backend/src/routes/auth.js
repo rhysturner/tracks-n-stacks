@@ -78,6 +78,8 @@ router.post(
           displayName: user.displayName,
           role: user.role,
           streamKey: user.streamKey,
+          tier: user.tier,
+          savedLiveRecordingCount: user.savedLiveRecordingCount,
         },
       });
     } catch (err) {
@@ -125,6 +127,8 @@ router.post(
           role: user.role,
           streamKey: user.streamKey,
           avatarUrl: user.avatarUrl,
+          tier: user.tier,
+          savedLiveRecordingCount: user.savedLiveRecordingCount,
         },
       });
     } catch (err) {

@@ -6,6 +6,8 @@ const RED5_HOST = process.env.REACT_APP_RED5_HOST || 'localhost';
 const RED5_RTMP_PORT = process.env.REACT_APP_RED5_RTMP_PORT || '1935';
 const RED5_APP = process.env.REACT_APP_RED5_APP || 'live';
 
+const FREE_TIER_MAX_RECORDINGS = 1;
+
 export default function DashboardPage() {
   const { user, updateUser } = useAuth();
   const [activeStream, setActiveStream] = useState(null);
@@ -20,25 +22,36 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [streamKeyVisible, setStreamKeyVisible] = useState(false);
   const [streamKey, setStreamKey] = useState('');
+  const [tier, setTier] = useState('free');
+  const [savedLiveRecordingCount, setSavedLiveRecordingCount] = useState(0);
+  const [saveLimitReached, setSaveLimitReached] = useState(false);
 
   useEffect(() => {
-    // Fetch stream key on mount
-    const loadStreamKey = async () => {
+    // Fetch stream key and tier info on mount
+    const loadUserData = async () => {
       try {
         const data = await authService.me();
-        if (data.user && data.user.streamKey) {
-          setStreamKey(data.user.streamKey);
+        if (data.user) {
+          if (data.user.streamKey) setStreamKey(data.user.streamKey);
+          if (data.user.tier) setTier(data.user.tier);
+          if (typeof data.user.savedLiveRecordingCount === 'number') {
+            setSavedLiveRecordingCount(data.user.savedLiveRecordingCount);
+          }
         }
       } catch {}
     };
-    loadStreamKey();
+    loadUserData();
   }, []);
 
   const rtmpUrl = `rtmp://${RED5_HOST}:${RED5_RTMP_PORT}/${RED5_APP}`;
 
+  const isFree = tier === 'free';
+  const freeLimitReached = isFree && savedLiveRecordingCount >= FREE_TIER_MAX_RECORDINGS;
+
   const handleStartStream = async (e) => {
     e.preventDefault();
     setError('');
+    setSaveLimitReached(false);
     setLoading(true);
     try {
       const tags = streamForm.tags
@@ -50,7 +63,7 @@ export default function DashboardPage() {
         description: streamForm.description,
         genre: streamForm.genre,
         tags,
-        recordingEnabled: streamForm.recordingEnabled,
+        recordingEnabled: !freeLimitReached && streamForm.recordingEnabled,
       });
       setActiveStream(res.stream);
       updateUser({ isStreaming: true });
@@ -64,10 +77,26 @@ export default function DashboardPage() {
   const handleEndStream = async () => {
     if (!activeStream || !window.confirm('End the stream?')) return;
     setLoading(true);
+    setSaveLimitReached(false);
     try {
-      await streamService.end(activeStream._id);
+      const res = await streamService.end(activeStream._id);
       setActiveStream(null);
-      updateUser({ isStreaming: false });
+      if (res.saveLimitReached) {
+        setSaveLimitReached(true);
+      }
+      // Re-fetch authoritative user data to sync tier/count
+      try {
+        const fresh = await authService.me();
+        if (fresh.user) {
+          if (typeof fresh.user.savedLiveRecordingCount === 'number') {
+            setSavedLiveRecordingCount(fresh.user.savedLiveRecordingCount);
+          }
+          updateUser({
+            isStreaming: false,
+            mixCount: fresh.user.mixCount ?? user?.mixCount,
+          });
+        }
+      } catch {}
     } catch (err) {
       setError(err.message || 'Failed to end stream');
     } finally {
@@ -90,6 +119,16 @@ export default function DashboardPage() {
       <h1 style={styles.pageTitle}>DJ Dashboard</h1>
 
       {error && <div style={styles.error}>{error}</div>}
+
+      {saveLimitReached && (
+        <div style={styles.upgradeBanner}>
+          <span style={styles.upgradeBannerIcon}>🔒</span>
+          <div>
+            <strong>Free tier limit reached</strong> — You've used your 1 free stream save.{' '}
+            <button type="button" style={styles.upgradeLink}>Upgrade to Pro</button> to save unlimited streams as mixes.
+          </div>
+        </div>
+      )}
 
       <div style={styles.layout}>
         {/* Left: Stream control */}
@@ -142,15 +181,29 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={streamForm.recordingEnabled}
-                    onChange={(e) => setStreamForm({ ...streamForm, recordingEnabled: e.target.checked })}
-                    style={{ marginRight: '8px' }}
-                  />
-                  <span style={styles.label}>Save recording as a Mix after stream ends</span>
-                </label>
+                {freeLimitReached ? (
+                  <div style={styles.tierLimitNotice}>
+                    🔒 <strong>Free tier:</strong> You've used your 1 free stream save.{' '}
+                    <button type="button" style={styles.upgradeLink}>Upgrade to Pro</button> to save recordings.
+                  </div>
+                ) : (
+                  <div>
+                    <label style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={streamForm.recordingEnabled}
+                        onChange={(e) => setStreamForm({ ...streamForm, recordingEnabled: e.target.checked })}
+                        style={{ marginRight: '8px' }}
+                      />
+                      <span style={styles.label}>Save recording as a Mix after stream ends</span>
+                    </label>
+                    {isFree && (
+                      <div style={styles.tierHint}>
+                        Free tier: {FREE_TIER_MAX_RECORDINGS - savedLiveRecordingCount} of {FREE_TIER_MAX_RECORDINGS} stream {FREE_TIER_MAX_RECORDINGS - savedLiveRecordingCount === 1 ? 'save' : 'saves'} remaining
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button type="submit" style={styles.goLiveButton} disabled={loading}>
                   {loading ? 'Starting...' : '🔴 Go Live'}
                 </button>
@@ -181,6 +234,9 @@ export default function DashboardPage() {
                     <span style={styles.infoLabel}>Playback URL:</span>
                     <code style={styles.infoCode}>{activeStream.playbackUrl}</code>
                   </div>
+                )}
+                {activeStream.recordingEnabled && (
+                  <div style={styles.recordingBadge}>⏺ Recording — will be saved as a mix when you end the stream</div>
                 )}
               </div>
               <button style={styles.endButton} onClick={handleEndStream} disabled={loading}>
@@ -305,6 +361,54 @@ const styles = {
     fontFamily: 'inherit',
   },
   checkboxLabel: { display: 'flex', alignItems: 'center', cursor: 'pointer' },
+  tierHint: {
+    color: '#7c3aed',
+    fontSize: '0.78rem',
+    marginTop: '6px',
+    opacity: 0.85,
+  },
+  tierLimitNotice: {
+    background: 'rgba(124,58,237,0.12)',
+    border: '1px solid rgba(124,58,237,0.35)',
+    color: '#c4b5fd',
+    borderRadius: '8px',
+    padding: '10px 14px',
+    fontSize: '0.85rem',
+  },
+  upgradeLink: {
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    color: '#a78bfa',
+    fontWeight: 700,
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    fontSize: 'inherit',
+    fontFamily: 'inherit',
+  },
+  upgradeBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    background: 'rgba(124,58,237,0.15)',
+    border: '1px solid rgba(124,58,237,0.4)',
+    color: '#c4b5fd',
+    borderRadius: '10px',
+    padding: '14px 16px',
+    marginBottom: '24px',
+    fontSize: '0.9rem',
+  },
+  upgradeBannerIcon: { fontSize: '1.2rem', flexShrink: 0, marginTop: '1px' },
+  recordingBadge: {
+    display: 'inline-block',
+    background: 'rgba(239,68,68,0.12)',
+    border: '1px solid rgba(239,68,68,0.3)',
+    color: '#fca5a5',
+    borderRadius: '6px',
+    padding: '4px 10px',
+    fontSize: '0.8rem',
+    marginTop: '8px',
+  },
   goLiveButton: {
     background: '#ef4444',
     color: '#fff',

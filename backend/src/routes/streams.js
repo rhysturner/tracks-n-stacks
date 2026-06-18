@@ -201,28 +201,38 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     // Tell Red5 to disconnect the publisher
     await red5Service.disconnectStream(stream.red5StreamName);
 
+    const FREE_TIER_MAX_RECORDINGS = 1;
+    let saveLimitReached = false;
+
     // If recording is enabled, create a Mix from the recording
     if (stream.recordingEnabled) {
-      const recordings = await red5Service.getRecordings(stream.red5StreamName);
-      const recordingUrl = recordings && recordings[0] ? recordings[0].url : stream.playbackUrl;
+      const isFree = req.user.tier === 'free';
+      if (isFree && req.user.savedLiveRecordingCount >= FREE_TIER_MAX_RECORDINGS) {
+        saveLimitReached = true;
+      } else {
+        const recordings = await red5Service.getRecordings(stream.red5StreamName);
+        const recordingUrl = recordings && recordings[0] ? recordings[0].url : stream.playbackUrl;
 
-      const mix = await Mix.create({
-        dj: req.user._id,
-        title: stream.title,
-        description: stream.description,
-        genre: stream.genre,
-        tags: stream.tags,
-        playbackUrl: recordingUrl,
-        durationSeconds: stream.durationSeconds || 0,
-        sourceType: 'live_recording',
-        sourceStream: stream._id,
-      });
+        const mix = await Mix.create({
+          dj: req.user._id,
+          title: stream.title,
+          description: stream.description,
+          genre: stream.genre,
+          tags: stream.tags,
+          playbackUrl: recordingUrl,
+          durationSeconds: stream.durationSeconds || 0,
+          sourceType: 'live_recording',
+          sourceStream: stream._id,
+        });
 
-      stream.savedMix = mix._id;
-      await stream.save();
+        stream.savedMix = mix._id;
+        await stream.save();
 
-      // Update user mix count
-      await User.findByIdAndUpdate(req.user._id, { $inc: { mixCount: 1 } });
+        // Update user mix count and saved recording count
+        await User.findByIdAndUpdate(req.user._id, {
+          $inc: { mixCount: 1, savedLiveRecordingCount: 1 },
+        });
+      }
     }
 
     // Notify viewers via socket
@@ -233,7 +243,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       });
     }
 
-    return res.json({ message: 'Stream ended', stream });
+    return res.json({ message: 'Stream ended', stream, saveLimitReached });
   } catch (err) {
     console.error('End stream error:', err);
     return res.status(500).json({ message: 'Server error' });
