@@ -95,8 +95,14 @@ router.post(
 
       const { title, description, genre, tags, chatEnabled, recordingEnabled } = req.body;
 
-      // Generate a unique stream name for Red5
-      const streamName = `${req.user.username}_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
+      // Use the DJ stream key as the Red5 stream name so OBS ingest and playback always match.
+      let streamName = req.user.streamKey;
+
+      // Safety fallback for legacy users missing a stream key.
+      if (!streamName) {
+        streamName = uuidv4().replace(/-/g, '');
+        await User.findByIdAndUpdate(req.user._id, { streamKey: streamName });
+      }
 
       const stream = await Stream.create({
         dj: req.user._id,

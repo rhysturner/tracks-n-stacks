@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import Hls from 'hls.js';
 import { streamService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import LiveChat from '../components/stream/LiveChat';
@@ -10,6 +11,8 @@ export default function StreamViewPage() {
   const [stream, setStream] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [playbackError, setPlaybackError] = useState('');
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const fetchStream = async () => {
@@ -24,6 +27,57 @@ export default function StreamViewPage() {
     };
     fetchStream();
   }, [id]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video || !stream?.playbackUrl || stream?.status !== 'live') {
+      return undefined;
+    }
+
+    setPlaybackError('');
+    let hls;
+
+    const onVideoError = () => {
+      setPlaybackError('Unable to play this live stream right now.');
+    };
+
+    video.addEventListener('error', onVideoError);
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = stream.playbackUrl;
+    } else if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data?.fatal) {
+          setPlaybackError('Live playback failed. Try refreshing the page.');
+        }
+      });
+
+      hls.loadSource(stream.playbackUrl);
+      hls.attachMedia(video);
+    } else {
+      setPlaybackError('Your browser does not support live HLS playback.');
+    }
+
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        // Autoplay can fail until user interaction; controls allow manual play.
+      });
+    }
+
+    return () => {
+      video.removeEventListener('error', onVideoError);
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [stream?.playbackUrl, stream?.status]);
 
   if (loading) return <div style={styles.loading}>Loading stream...</div>;
   if (error) return (
@@ -44,24 +98,23 @@ export default function StreamViewPage() {
           <div style={styles.playerWrapper}>
             {stream?.status === 'live' ? (
               <div style={styles.player}>
-                {/* Red5 WebRTC Player / HLS Player placeholder */}
-                <div style={styles.playerPlaceholder}>
-                  <div style={styles.playerIcon}>📡</div>
-                  <div style={styles.playerText}>Live stream playing via Red5</div>
+                <video
+                  ref={videoRef}
+                  style={styles.video}
+                  controls
+                  autoPlay
+                  playsInline
+                />
+                {playbackError && (
+                  <div style={styles.playerError}>{playbackError}</div>
+                )}
+                <div style={styles.playerMeta}>
                   <div style={styles.playerSubtext}>
                     WebRTC: <code style={styles.code}>{stream.webrtcPlaybackUrl}</code>
                   </div>
                   <div style={styles.playerSubtext}>
                     HLS: <code style={styles.code}>{stream.playbackUrl}</code>
                   </div>
-                  {/* 
-                    In production, embed the Red5 WebRTC subscriber here:
-                    <red5pro-subscriber
-                      host={RED5_HOST}
-                      app={RED5_APP}
-                      stream-name={stream.red5StreamName}
-                    />
-                  */}
                 </div>
               </div>
             ) : (
@@ -138,17 +191,34 @@ const styles = {
   layout: { display: 'flex', gap: '24px', alignItems: 'flex-start' },
   playerSection: { flex: 1, minWidth: 0 },
   playerWrapper: { background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px', aspectRatio: '16/9' },
-  player: { width: '100%', height: '100%' },
-  playerPlaceholder: {
+  player: { width: '100%', height: '100%', position: 'relative' },
+  video: {
     width: '100%',
     height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#0a0a0a',
-    padding: '24px',
-    boxSizing: 'border-box',
+    background: '#000',
+    display: 'block',
+  },
+  playerMeta: {
+    position: 'absolute',
+    left: '12px',
+    bottom: '12px',
+    background: 'rgba(0,0,0,0.65)',
+    border: '1px solid rgba(124,58,237,0.35)',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    maxWidth: '92%',
+  },
+  playerError: {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    right: '12px',
+    background: 'rgba(239,68,68,0.2)',
+    border: '1px solid rgba(239,68,68,0.45)',
+    color: '#fecaca',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    fontSize: '0.8rem',
   },
   playerIcon: { fontSize: '3rem', marginBottom: '16px', opacity: 0.5 },
   playerText: { color: '#888', fontSize: '1rem', marginBottom: '12px' },
