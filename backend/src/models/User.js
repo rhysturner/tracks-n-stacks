@@ -85,6 +85,15 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    tier: {
+      type: String,
+      enum: ['free', 'pro'],
+      default: 'free',
+    },
+    savedLiveRecordingCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
