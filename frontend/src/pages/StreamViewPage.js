@@ -4,6 +4,7 @@ import Hls from 'hls.js';
 import { streamService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import LiveChat from '../components/stream/LiveChat';
+import ShareModal from '../components/stream/ShareModal';
 
 export default function StreamViewPage() {
   const { id } = useParams();
@@ -12,6 +13,7 @@ export default function StreamViewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [playbackError, setPlaybackError] = useState('');
+  const [showShare, setShowShare] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -89,9 +91,17 @@ export default function StreamViewPage() {
   );
 
   const dj = stream?.dj || {};
+  const streamUrl = `${window.location.origin}/streams/${id}`;
 
   return (
     <div style={styles.page}>
+      {showShare && (
+        <ShareModal
+          url={streamUrl}
+          title={stream?.title ? `🎧 ${stream.title} — live now!` : 'Check out this live stream!'}
+          onClose={() => setShowShare(false)}
+        />
+      )}
       <div style={styles.layout}>
         {/* Video Player */}
         <div style={styles.playerSection}>
@@ -137,6 +147,13 @@ export default function StreamViewPage() {
                 <span style={styles.liveBadge}>● LIVE</span>
               )}
               <h1 style={styles.streamTitle}>{stream?.title}</h1>
+              <button
+                style={styles.shareBtn}
+                onClick={() => setShowShare(true)}
+                title="Share this stream"
+              >
+                🔗 Share
+              </button>
             </div>
 
             <div style={styles.djInfo}>
@@ -250,6 +267,19 @@ const styles = {
     border: '1px solid #2a2a4a',
   },
   titleRow: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' },
+  shareBtn: {
+    marginLeft: 'auto',
+    background: '#0d0d1a',
+    border: '1px solid #2a2a4a',
+    borderRadius: '8px',
+    color: '#ccc',
+    padding: '6px 14px',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+  },
   liveBadge: {
     background: 'rgba(239,68,68,0.2)',
     color: '#ef4444',
